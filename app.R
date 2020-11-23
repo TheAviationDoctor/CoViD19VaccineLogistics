@@ -44,7 +44,7 @@ icons <- awesomeIcons(
 )
 
 #URLs
-URLManufacturing      <- ""
+URLManufacturing      <- "https://raw.githubusercontent.com/TheAviationDoctor/CoViD19VaccineLogistics/main/data/manufacturing.csv"
 ###############################################################################
 # USER INTERFACE LOGIC                                                        #
 ###############################################################################
@@ -72,7 +72,7 @@ ui <- fluidPage(
         "Select one or more manufacturers",
         c("Moderna", "Pfizer"),
         selected = NULL,
-        multiple = TRUE,
+        multiple = FALSE,
         selectize = TRUE,
         width = "100%"
       )
@@ -81,9 +81,7 @@ ui <- fluidPage(
     # MAIN PANEL FOR OUTPUTS                                              #
     #######################################################################
     mainPanel(
-      leafletOutput("mymap"),
-      p(),
-      actionButton("recalc", "New points")
+      leafletOutput("mymap")
     )
   )
 )
@@ -92,17 +90,25 @@ ui <- fluidPage(
 # SERVER LOGIC                                                                #
 ###############################################################################
 server <- function(input, output) {
-  points <- eventReactive(input$recalc, {
-    cbind(rnorm(40) * 2 + 13, rnorm(40) + 48)
-  }, ignoreNULL = FALSE)
+  ###########################################################################
+  # IMPORT AND WRANGLE DATA                                                 #
+  ###########################################################################
+  # Import and wrangle the manufacturing data
+  Manufacturing <- reactive({
+    pin(URLManufacturing) %>%
+      read_csv(na = "", col_names = TRUE, col_types = list(col_character(), col_character(), col_double(), col_double())) %>%
+      filter(Manufacturer == "Moderna") %>%
+      cbind("Longitude", "Latitude")
+  })
+  
+  
   
   output$mymap <- renderLeaflet({
     leaflet() %>%
       addProviderTiles(providers$Stamen.TonerLite,
                        options = providerTileOptions(noWrap = TRUE)
       ) %>%
-      addAwesomeMarkers(data = points(), icon=icons) %>%
-      addAwesomeMarkers(data = Moderna, icon=icons)
+      addAwesomeMarkers(data = Manufacturing(), icon=icons)
   })
 }
 ###############################################################################
