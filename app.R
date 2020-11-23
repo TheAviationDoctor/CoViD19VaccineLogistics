@@ -16,6 +16,7 @@
 # Clear the console
 #cat("\014")
 # Load libraries
+library(DT)                 # To better display data tables
 library(leaflet)            # To better display data tables
 library(pins)               # To locally cache downloaded data for performance
 library(shiny)              # to build and display the app in a browser
@@ -81,7 +82,8 @@ ui <- fluidPage(
     # MAIN PANEL FOR OUTPUTS                                              #
     #######################################################################
     mainPanel(
-      leafletOutput("mymap")
+      leafletOutput("mymap"),
+      DT::dataTableOutput("MyTable")
     )
   )
 )
@@ -97,18 +99,19 @@ server <- function(input, output) {
   Manufacturing <- reactive({
     pin(URLManufacturing) %>%
       read_csv(na = "", col_names = TRUE, col_types = list(col_character(), col_character(), col_double(), col_double())) %>%
-      filter(Manufacturer == "Moderna") %>%
-      cbind("Longitude", "Latitude")
+      filter(Manufacturer == input$Manufacturer)
+    # %>%
+    #   cbind("Longitude", "Latitude")
   })
-  
-  
+
+  output$MyTable <- DT::renderDataTable({
+    datatable(Manufacturing(), rownames = NULL, options = list(dom = "t", ordering = FALSE, paging = FALSE))
+  })
   
   output$mymap <- renderLeaflet({
     leaflet() %>%
-      addProviderTiles(providers$Stamen.TonerLite,
-                       options = providerTileOptions(noWrap = TRUE)
-      ) %>%
-      addAwesomeMarkers(data = Manufacturing(), icon=icons)
+      addProviderTiles(providers$Stamen.TonerLite, options = providerTileOptions(noWrap = TRUE)) %>%
+      addAwesomeMarkers(data = Manufacturing() %>% cbind("Longitude", "Latitude"), icon=icons)
   })
 }
 ###############################################################################
