@@ -30,10 +30,10 @@ library(tidyverse)          # To wrangle the data
 # Header labels
 AppHeader               <- "COVID-19 vaccine logistics"
 #URLs
-URLManufacturing      <- "https://raw.githubusercontent.com/TheAviationDoctor/CoViD19VaccineLogistics/main/data/manufacturing.csv"
+URLNodes      <- "https://raw.githubusercontent.com/TheAviationDoctor/CoViD19VaccineLogistics/main/data/nodes.csv"
 # Import and wrangle the manufacturing data
-DataManufacturing <- pin(URLManufacturing) %>%
-    read_csv(na = "", col_names = TRUE, col_types = list(col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_double(), col_double(), col_factor(), col_factor(), col_factor(), col_character())) %>%
+DataNodes <- pin(URLNodes) %>%
+    read_csv(na = "", col_names = TRUE, col_types = list(col_integer(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_double(), col_double(), col_factor(), col_factor(), col_factor(), col_character())) %>%
     filter(show == TRUE)
 ###############################################################################
 # USER INTERFACE LOGIC                                                        #
@@ -58,8 +58,8 @@ ui <- fluidPage(
       selectInput(
         "vaccine",
         "Select one or more vaccine",
-        unique(DataManufacturing$vaccine),
-        selected = unique(DataManufacturing$vaccine),
+        unique(DataNodes$vaccine),
+        selected = unique(DataNodes$vaccine),
         multiple = TRUE,
         selectize = TRUE,
         width = "100%"
@@ -68,8 +68,8 @@ ui <- fluidPage(
       selectInput(
         "site",
         "Select one or more site",
-        unique(DataManufacturing$site),
-        selected = unique(DataManufacturing$site),
+        unique(DataNodes$site),
+        selected = unique(DataNodes$site),
         multiple = TRUE,
         selectize = TRUE,
         width = "100%"
@@ -90,9 +90,9 @@ server <- function(input, output) {
   ###########################################################################
   # IMPORT AND WRANGLE DATA                                                 #
   ###########################################################################
-  # Import and wrangle the manufacturing data
-  DataManufacturingFiltered <- reactive({
-    DataManufacturing %>%
+  # Import and wrangle the node data
+  DataNodesFiltered <- reactive({
+    DataNodes %>%
       filter(vaccine %in% input$vaccine) %>% 
       filter(site %in% input$site)
   })
@@ -101,17 +101,17 @@ server <- function(input, output) {
       leaflet() %>%
       addProviderTiles(providers$Stamen.TonerLite, options = providerTileOptions(noWrap = TRUE)) %>%
       addAwesomeMarkers(
-        data = DataManufacturingFiltered() %>% cbind("longitude", "latitude"),
+        data = DataNodesFiltered() %>% cbind("longitude", "latitude"),
         lng = ~longitude,
         lat = ~latitude,
-        label = DataManufacturingFiltered()$vaccine,
-        popup = paste("<strong>", DataManufacturingFiltered()$vaccine," | </strong>", DataManufacturingFiltered()$comments),
+        label = DataNodesFiltered()$vaccine,
+        popup = paste("<strong>", DataNodesFiltered()$vaccine," | </strong>", DataNodesFiltered()$comments),
         icon = awesomeIcons(
           icon = "truck",
-          iconColor = DataManufacturingFiltered()$iconcolor,
+          iconColor = DataNodesFiltered()$iconcolor,
           library = 'fa',
-          markerColor = DataManufacturingFiltered()$markercolor,
-          text = substr(DataManufacturingFiltered()$site, 1, 1)
+          markerColor = DataNodesFiltered()$markercolor,
+          text = substr(DataNodesFiltered()$site, 1, 1)
        )
       ) %>%
       addPolylines()
