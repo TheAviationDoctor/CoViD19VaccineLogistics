@@ -18,6 +18,7 @@
 #cat("\014")
 # Load libraries
 library(DT)                 # To better display data tables
+library(geosphere)          # To display great circle lines
 library(leaflet)            # To better display data tables
 library(pins)               # To locally cache downloaded data for performance
 library(shiny)              # to build and display the app in a browser
@@ -32,7 +33,8 @@ AppHeader               <- "COVID-19 vaccine logistics"
 URLManufacturing      <- "https://raw.githubusercontent.com/TheAviationDoctor/CoViD19VaccineLogistics/main/data/manufacturing.csv"
 # Import and wrangle the manufacturing data
 DataManufacturing <- pin(URLManufacturing) %>%
-    read_csv(na = "", col_names = TRUE, col_types = list(col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_double(), col_double(), col_factor(), col_factor(), col_factor(), col_character()))
+    read_csv(na = "", col_names = TRUE, col_types = list(col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_double(), col_double(), col_factor(), col_factor(), col_factor(), col_character())) %>%
+    filter(show == TRUE)
 ###############################################################################
 # USER INTERFACE LOGIC                                                        #
 ###############################################################################
@@ -95,7 +97,8 @@ server <- function(input, output) {
       filter(site %in% input$site)
   })
   output$mymap <- renderLeaflet({
-    leaflet() %>%
+      gcIntermediate(c(-90.556371,38.658831), c(-71.1694422,42.6147393), n = 100, addStartEnd = TRUE, sp = TRUE) %>%
+      leaflet() %>%
       addProviderTiles(providers$Stamen.TonerLite, options = providerTileOptions(noWrap = TRUE)) %>%
       addAwesomeMarkers(
         data = DataManufacturingFiltered() %>% cbind("longitude", "latitude"),
@@ -103,15 +106,15 @@ server <- function(input, output) {
         lat = ~latitude,
         label = DataManufacturingFiltered()$vaccine,
         popup = paste("<strong>", DataManufacturingFiltered()$vaccine," | </strong>", DataManufacturingFiltered()$comments),
-        # label = ~city,
         icon = awesomeIcons(
-#          icon = DataManufacturingFiltered()$icon,
           icon = "truck",
           iconColor = DataManufacturingFiltered()$iconcolor,
           library = 'fa',
-          markerColor = DataManufacturingFiltered()$markercolor
-        )
-      )
+          markerColor = DataManufacturingFiltered()$markercolor,
+          text = substr(DataManufacturingFiltered()$site, 1, 1)
+       )
+      ) %>%
+      addPolylines()
   })
 }
 ###############################################################################
