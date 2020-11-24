@@ -31,6 +31,7 @@ library(tidyverse)          # To wrangle the data
 AppHeader               <- "COVID-19 vaccine logistics"
 #URLs
 URLNodes      <- "https://raw.githubusercontent.com/TheAviationDoctor/CoViD19VaccineLogistics/main/data/nodes.csv"
+URLLinks      <- "https://raw.githubusercontent.com/TheAviationDoctor/CoViD19VaccineLogistics/main/data/links.csv"
 # Import and wrangle the manufacturing data
 DataNodes <- pin(URLNodes) %>%
     read_csv(na = "", col_names = TRUE, col_types = list(col_integer(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_double(), col_double(), col_factor(), col_factor(), col_factor(), col_character())) %>%
@@ -111,7 +112,7 @@ server <- function(input, output) {
           iconColor = DataNodesFiltered()$iconcolor,
           library = 'fa',
           markerColor = DataNodesFiltered()$markercolor,
-          text = substr(DataNodesFiltered()$site, 1, 1)
+          text = DataNodesFiltered()$id
        )
       ) %>%
       addPolylines()
