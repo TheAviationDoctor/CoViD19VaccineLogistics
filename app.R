@@ -31,7 +31,7 @@ AppHeader               <- "COVID-19 vaccine logistics"
 URLManufacturing      <- "https://raw.githubusercontent.com/TheAviationDoctor/CoViD19VaccineLogistics/main/data/manufacturing.csv"
 # Import and wrangle the manufacturing data
 DataManufacturing <- pin(URLManufacturing) %>%
-    read_csv(na = "", col_names = TRUE, col_types = list(col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_double(), col_double(), col_factor(), col_character()))
+    read_csv(na = "", col_names = TRUE, col_types = list(col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_double(), col_double(), col_factor(), col_factor(), col_factor(), col_character()))
 ###############################################################################
 # USER INTERFACE LOGIC                                                        #
 ###############################################################################
@@ -90,9 +90,8 @@ server <- function(input, output) {
   # Import and wrangle the manufacturing data
   DataManufacturingFiltered <- reactive({
     DataManufacturing %>%
-      filter(vaccine %in% input$vaccine)
-    # %>%
-    #   filter(site %in% input$site)
+      filter(vaccine %in% input$vaccine) %>% 
+      filter(site %in% input$site)
   })
   output$mymap <- renderLeaflet({
     leaflet() %>%
@@ -101,16 +100,14 @@ server <- function(input, output) {
         data = DataManufacturingFiltered() %>% cbind("longitude", "latitude"),
         lng = ~longitude,
         lat = ~latitude,
+        label = paste(DataManufacturingFiltered()$vaccine),
+        popup = paste("<strong>", DataManufacturingFiltered()$vaccine," | </strong>", DataManufacturingFiltered()$comments),
         # label = ~city,
         icon = awesomeIcons(
-          # icon = "industry",
-          # icon = if(DataManufacturingFiltered()$site == "1. Raw material") { "test" }
-          #   else if(DataManufacturingFiltered()$site == "2. Drug substance") { "industry" }
-          #   else if(DataManufacturingFiltered()$site == "3. Formulation, Fill & Finish") { "test" }
-          #   else if(DataManufacturingFiltered()$site == "4. Distribution") { "warehouse" },
-          iconColor = DataManufacturingFiltered()$color,
+          icon = DataManufacturingFiltered()$icon,
+          iconColor = DataManufacturingFiltered()$iconcolor,
           library = 'fa',
-          markerColor = "blue"
+          markerColor = DataManufacturingFiltered()$markercolor
         )
       )
   })
