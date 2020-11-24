@@ -27,22 +27,6 @@ library(tidyverse)          # To wrangle the data
 ###############################################################################
 # Header labels
 AppHeader               <- "COVID-19 vaccine logistics"
-r_colors <- rgb(t(col2rgb(colors()) / 255))
-names(r_colors) <- colors()
-
-Moderna <- cbind(-70.8036334, 43.082936)
-
-oceanIcons <- iconList(
-  ship = makeIcon("ferry-18.png", "ferry-18@2x.png", 18, 18),
-  pirate = makeIcon("danger-24.png", "danger-24@2x.png", 24, 24)
-)
-
-icons <- awesomeIcons(
-  icon = 'industry',
-  iconColor = 'black',
-  library = 'fa',
-  markerColor = "red"
-)
 
 #URLs
 URLManufacturing      <- "https://raw.githubusercontent.com/TheAviationDoctor/CoViD19VaccineLogistics/main/data/manufacturing.csv"
@@ -66,13 +50,24 @@ ui <- fluidPage(
     sidebarPanel(
       #Title
       h3("Vaccines"),
-      # Manufacturer selection
+      # Vaccine selection
       hr(),
       selectInput(
-        "Vaccine",
-        "Select one or more manufacturers",
+        "vaccine",
+        "Select one or more vaccine",
         c("Moderna", "Pfizer"),
-        selected = "Moderna",
+        selected = "Pfizer",
+        multiple = TRUE,
+        selectize = TRUE,
+        width = "100%"
+      ),
+      # Site selection
+      hr(),
+      selectInput(
+        "site",
+        "Select one or more vaccine",
+        c("1. Raw material", "2. Drug substance", "3. Formulation, Fill & Finish", "4. Distribution"),
+        selected = "1. Raw material",
         multiple = TRUE,
         selectize = TRUE,
         width = "100%"
@@ -83,8 +78,6 @@ ui <- fluidPage(
     #######################################################################
     mainPanel(
       leafletOutput("mymap"),
-      DT::dataTableOutput("MyTable"),
-      textOutput("MyChoice")
     )
   )
 )
@@ -99,8 +92,9 @@ server <- function(input, output) {
   # Import and wrangle the manufacturing data
   Manufacturing <- reactive({
     pin(URLManufacturing) %>%
-      read_csv(na = "", col_names = TRUE, col_types = list(col_character(), col_character(), col_double(), col_double())) %>%
-      filter(Vaccine %in% input$Vaccine)
+      read_csv(na = "", col_names = TRUE, col_types = list(col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_double(), col_double(), col_factor(), col_character())) %>%
+      filter(vaccine %in% input$vaccine) %>%
+      filter(site %in% input$site)
   })
 
   # output$MyTable <- DT::renderDataTable({
@@ -110,7 +104,23 @@ server <- function(input, output) {
   output$mymap <- renderLeaflet({
     leaflet() %>%
       addProviderTiles(providers$Stamen.TonerLite, options = providerTileOptions(noWrap = TRUE)) %>%
-      addAwesomeMarkers(data = Manufacturing() %>% cbind("Longitude", "Latitude"), icon=icons)
+      addAwesomeMarkers(
+        data = Manufacturing() %>% cbind("longitude", "latitude"),
+        lng = ~longitude,
+        lat = ~latitude,
+        # label = ~city,
+        icon = awesomeIcons(
+          # icon = "industry",
+          icon = ifelse(
+            test = Manufacturing()$purpose == "1. Raw material",
+            yes = "industry",
+            no = "clinic-medical"  # up arrow for secondary
+          ),
+          iconColor = Manufacturing()$color,
+          library = 'fa',
+          markerColor = "lightblue"
+        )
+      )
   })
 }
 ###############################################################################

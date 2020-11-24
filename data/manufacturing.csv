@@ -1,4 +1,4 @@
-vaccine,operator,purpose,city,state,country,latitude,longitude,color,comments
+vaccine,operator,site,city,state,country,latitude,longitude,color,comments
 Moderna,Lonza,,Portsmouth,New Hampshire,United States of America,43.082936,-70.8036334,#fd0002,
 Moderna,Lonza,,Visp,Valais,Switzerland,46.2950789,7.8830585,#fd0002,
 Pfizer,Delpharm,,Saint-Rémy-sur-Avre,Eure-et-Loir,FR,48.764214,1.234534,#0078bc,
