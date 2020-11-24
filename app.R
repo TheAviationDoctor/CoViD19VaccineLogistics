@@ -4,6 +4,7 @@
 #             contact@theaviationdoctor.com                                   #
 #             https://theaviationdoctor.com                                   #
 #             November 2020                                                   #
+# Font Awesome icons taken from https://fontawesome.com/v4.7.0/icons/         #
 ###############################################################################
 ###############################################################################
 # ROADMAP FOR FUTURE FEATURES                                                 #
@@ -100,11 +101,12 @@ server <- function(input, output) {
         data = DataManufacturingFiltered() %>% cbind("longitude", "latitude"),
         lng = ~longitude,
         lat = ~latitude,
-        label = paste(DataManufacturingFiltered()$vaccine),
+        label = DataManufacturingFiltered()$vaccine,
         popup = paste("<strong>", DataManufacturingFiltered()$vaccine," | </strong>", DataManufacturingFiltered()$comments),
         # label = ~city,
         icon = awesomeIcons(
-          icon = DataManufacturingFiltered()$icon,
+#          icon = DataManufacturingFiltered()$icon,
+          icon = "truck",
           iconColor = DataManufacturingFiltered()$iconcolor,
           library = 'fa',
           markerColor = DataManufacturingFiltered()$markercolor
