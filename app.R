@@ -65,15 +65,15 @@ ui <- fluidPage(
     #######################################################################
     sidebarPanel(
       #Title
-      h3("Manufacturers"),
+      h3("Vaccines"),
       # Manufacturer selection
       hr(),
       selectInput(
-        "Manufacturer",
+        "Vaccine",
         "Select one or more manufacturers",
         c("Moderna", "Pfizer"),
-        selected = NULL,
-        multiple = FALSE,
+        selected = "Moderna",
+        multiple = TRUE,
         selectize = TRUE,
         width = "100%"
       )
@@ -83,7 +83,8 @@ ui <- fluidPage(
     #######################################################################
     mainPanel(
       leafletOutput("mymap"),
-      DT::dataTableOutput("MyTable")
+      DT::dataTableOutput("MyTable"),
+      textOutput("MyChoice")
     )
   )
 )
@@ -99,14 +100,12 @@ server <- function(input, output) {
   Manufacturing <- reactive({
     pin(URLManufacturing) %>%
       read_csv(na = "", col_names = TRUE, col_types = list(col_character(), col_character(), col_double(), col_double())) %>%
-      filter(Manufacturer == input$Manufacturer)
-    # %>%
-    #   cbind("Longitude", "Latitude")
+      filter(Vaccine %in% input$Vaccine)
   })
 
-  output$MyTable <- DT::renderDataTable({
-    datatable(Manufacturing(), rownames = NULL, options = list(dom = "t", ordering = FALSE, paging = FALSE))
-  })
+  # output$MyTable <- DT::renderDataTable({
+  #   datatable(Manufacturing(), rownames = NULL, options = list(dom = "t", ordering = FALSE, paging = FALSE))
+  # })
   
   output$mymap <- renderLeaflet({
     leaflet() %>%
