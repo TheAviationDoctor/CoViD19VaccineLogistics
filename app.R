@@ -23,18 +23,19 @@ library(shiny)              # to build and display the app in a browser
 library(shinycssloaders)    # To style the app and spinners in particular
 library(tidyverse)          # To wrangle the data
 ###############################################################################
-# VARIABLE DECLARATION                                                        #
+# VARIABLE DECLARATION AND DATA IMPORT/WRANGLING                              #
 ###############################################################################
 # Header labels
 AppHeader               <- "COVID-19 vaccine logistics"
-
 #URLs
 URLManufacturing      <- "https://raw.githubusercontent.com/TheAviationDoctor/CoViD19VaccineLogistics/main/data/manufacturing.csv"
+# Import and wrangle the manufacturing data
+DataManufacturing <- pin(URLManufacturing) %>%
+    read_csv(na = "", col_names = TRUE, col_types = list(col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_double(), col_double(), col_factor(), col_character()))
 ###############################################################################
 # USER INTERFACE LOGIC                                                        #
 ###############################################################################
 ui <- fluidPage(
-  
   # Globally style the app
   tags$head(
     tags$style("* { font-family: 'Aktiv Grotesk', Arial, sans-serif; !important }"),
@@ -49,25 +50,23 @@ ui <- fluidPage(
     #######################################################################
     sidebarPanel(
       #Title
-      h3("Vaccines"),
+      h3("Vaccine logistics"),
       # Vaccine selection
-      hr(),
       selectInput(
         "vaccine",
         "Select one or more vaccine",
-        c("Moderna", "Pfizer"),
-        selected = "Pfizer",
+        unique(DataManufacturing$vaccine),
+        selected = unique(DataManufacturing$vaccine),
         multiple = TRUE,
         selectize = TRUE,
         width = "100%"
       ),
       # Site selection
-      hr(),
       selectInput(
         "site",
-        "Select one or more vaccine",
-        c("1. Raw material", "2. Drug substance", "3. Formulation, Fill & Finish", "4. Distribution"),
-        selected = "1. Raw material",
+        "Select one or more site",
+        unique(DataManufacturing$site),
+        selected = unique(DataManufacturing$site),
         multiple = TRUE,
         selectize = TRUE,
         width = "100%"
@@ -81,7 +80,6 @@ ui <- fluidPage(
     )
   )
 )
-
 ###############################################################################
 # SERVER LOGIC                                                                #
 ###############################################################################
@@ -90,35 +88,29 @@ server <- function(input, output) {
   # IMPORT AND WRANGLE DATA                                                 #
   ###########################################################################
   # Import and wrangle the manufacturing data
-  Manufacturing <- reactive({
-    pin(URLManufacturing) %>%
-      read_csv(na = "", col_names = TRUE, col_types = list(col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_double(), col_double(), col_factor(), col_character())) %>%
-      filter(vaccine %in% input$vaccine) %>%
-      filter(site %in% input$site)
+  DataManufacturingFiltered <- reactive({
+    DataManufacturing %>%
+      filter(vaccine %in% input$vaccine)
+    # %>%
+    #   filter(site %in% input$site)
   })
-
-  # output$MyTable <- DT::renderDataTable({
-  #   datatable(Manufacturing(), rownames = NULL, options = list(dom = "t", ordering = FALSE, paging = FALSE))
-  # })
-  
   output$mymap <- renderLeaflet({
     leaflet() %>%
       addProviderTiles(providers$Stamen.TonerLite, options = providerTileOptions(noWrap = TRUE)) %>%
       addAwesomeMarkers(
-        data = Manufacturing() %>% cbind("longitude", "latitude"),
+        data = DataManufacturingFiltered() %>% cbind("longitude", "latitude"),
         lng = ~longitude,
         lat = ~latitude,
         # label = ~city,
         icon = awesomeIcons(
           # icon = "industry",
-          icon = ifelse(
-            test = Manufacturing()$purpose == "1. Raw material",
-            yes = "industry",
-            no = "clinic-medical"  # up arrow for secondary
-          ),
-          iconColor = Manufacturing()$color,
+          # icon = if(DataManufacturingFiltered()$site == "1. Raw material") { "test" }
+          #   else if(DataManufacturingFiltered()$site == "2. Drug substance") { "industry" }
+          #   else if(DataManufacturingFiltered()$site == "3. Formulation, Fill & Finish") { "test" }
+          #   else if(DataManufacturingFiltered()$site == "4. Distribution") { "warehouse" },
+          iconColor = DataManufacturingFiltered()$color,
           library = 'fa',
-          markerColor = "lightblue"
+          markerColor = "blue"
         )
       )
   })
