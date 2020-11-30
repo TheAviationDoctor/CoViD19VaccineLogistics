@@ -36,8 +36,8 @@ URLLinks      <- pin("https://raw.githubusercontent.com/TheAviationDoctor/CoViD1
 DataNodes <- pin(URLNodes) %>%
   read_csv(na = "", col_names = TRUE, col_types = list(col_integer(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_double(), col_double(), col_character(), col_factor(), col_factor(), col_factor(), col_character())) %>%
   filter(show == TRUE)
-DataLinks <- pin(URLNodes) %>%
-  read_csv(na = "", col_names = TRUE, col_types = list(col_character(), col_integer(), col_integer(), col_integer(), col_factor(), col_character())) %>%
+DataLinks <- pin(URLLinks) %>%
+  read_csv(na = "", col_names = TRUE, col_types = list(col_integer(), col_integer(), col_integer(), col_factor(), col_character())) %>%
   filter(show == TRUE)
 ###############################################################################
 # USER INTERFACE LOGIC                                                        #
@@ -63,7 +63,7 @@ ui <- fluidPage(
         "vaccine",
         "Select one or more vaccine",
         unique(DataNodes$vaccine),
-#        selected = "",
+        selected = unique(DataNodes$vaccine), # Select all values by default
         multiple = TRUE,
         selectize = TRUE,
         width = "100%"
@@ -73,7 +73,7 @@ ui <- fluidPage(
         "site",
         "Select one or more site",
         unique(DataNodes$site),
-#        selected = "",
+        selected = unique(DataNodes$site), # Select all values by default
         multiple = TRUE,
         selectize = TRUE,
         width = "100%"
@@ -98,32 +98,32 @@ server <- function(input, output) {
   ###########################################################################
   # IMPORT AND WRANGLE DATA                                                 #
   ###########################################################################
-  # Import and wrangle the node data
-  DataNodesFiltered <- reactive({
-    DataNodes %>%
-      filter(vaccine %in% input$vaccine) %>% 
-      filter(site %in% input$site) %>%
-      select(id, vaccine, operator, site, latitude, longitude)
+  # Filter the nodes data based on user selection
+  DataNodesFiltered <- reactive({ DataNodes %>% filter(vaccine %in% input$vaccine) %>% filter(site %in% input$site) %>% select(id, vaccine, operator, site, latitude, longitude) })
+  # Build the nodes data from filtered nodes data
+  DataLinksFiltered <- reactive({DataLinks %>%
+      mutate(
+        sourceLatitude = DataNodesFiltered() %>% filter(id %in% DataLinks$source) %>% pull(latitude),
+        sourceLongitude = DataNodesFiltered() %>% filter(id %in% DataLinks$source) %>% pull(longitude),
+        targetLatitude = DataNodesFiltered() %>% filter(id %in% DataLinks$target) %>% pull(latitude),
+        targetLongitude = DataNodesFiltered() %>% filter(id %in% DataLinks$target) %>% pull(longitude)
+      )
   })
-  DataLinksFiltered <- reactive({
-    DataLinks %>%
-      filter(source %in% DataNodesFiltered()$id)
-  })
-  output$DataNodesFiltered <- DT::renderDataTable({datatable(DataNodesFiltered(), rownames = NULL, options = list(dom = "t", ordering = FALSE, paging = FALSE))})
+  # Display the nodes and links data as tables
+  # output$DataNodesFiltered <- DT::renderDataTable({datatable(DataNodesFiltered(), rownames = NULL, options = list(dom = "t", ordering = FALSE, paging = FALSE))})
   output$DataLinksFiltered <- DT::renderDataTable({datatable(DataLinksFiltered(), rownames = NULL, options = list(dom = "t", ordering = FALSE, paging = FALSE))})
-  output$Test <- renderText(nrow(DataNodesFiltered()))
   ############ EXPERIMENTAL
-  col.1 <- adjustcolor("orange red", alpha=0.4)
-  col.2 <- adjustcolor("orange", alpha=0.4)
-  edge.pal <- colorRampPalette(c(col.1, col.2), alpha = TRUE)
-  edge.col <- edge.pal(100)
-      for(i in 1:nrow(DataLinks)) {
-        node1 <- DataNodes[DataNodes$id == DataLinks[i,]$source,]
-        node2 <- DataNodes[DataNodes$id == DataLinks[i,]$target,]
-        arc <- gcIntermediate( c(node1[1,]$longitude, node1[1,]$latitude), c(node2[1,]$longitude, node2[1,]$latitude), n=1000, addStartEnd=TRUE )
-        edge.ind <- round(100 / max(DataLinks$volume))
-      }
-  output$arc <- DT::renderDataTable({datatable(arc, rownames = NULL, options = list(dom = "t", ordering = FALSE, paging = FALSE))})
+  # col.1 <- adjustcolor("orange red", alpha=0.4)
+  # col.2 <- adjustcolor("orange", alpha=0.4)
+  # edge.pal <- colorRampPalette(c(col.1, col.2), alpha = TRUE)
+  # edge.col <- edge.pal(100)
+  #     for(i in 1:nrow(DataLinks)) {
+  #       node1 <- DataNodes[DataNodes$id == DataLinks[i,]$source,]
+  #       node2 <- DataNodes[DataNodes$id == DataLinks[i,]$target,]
+  #       arc <- gcIntermediate( c(node1[1,]$longitude, node1[1,]$latitude), c(node2[1,]$longitude, node2[1,]$latitude), n=1000, addStartEnd=TRUE )
+  #       edge.ind <- round(100 / max(DataLinks$volume))
+  #     }
+  # output$arc <- DT::renderDataTable({datatable(arc, rownames = NULL, options = list(dom = "t", ordering = FALSE, paging = FALSE))})
   ############ END EXPERIMENTAL
   output$mymap <- renderLeaflet({
       gcIntermediate(c(-90.556371,38.658831), c(-71.1694422,42.6147393), n = 100, addStartEnd = TRUE, sp = TRUE) %>%
