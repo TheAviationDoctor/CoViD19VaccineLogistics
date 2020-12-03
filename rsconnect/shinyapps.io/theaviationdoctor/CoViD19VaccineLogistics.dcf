@@ -5,8 +5,8 @@ account: theaviationdoctor
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 3293026
-bundleId: 3937480
+bundleId: 3937516
 url: https://theaviationdoctor.shinyapps.io/CoViD19VaccineLogistics/
-when: 1606991023.34549
+when: 1606991542.29048
 asMultiple: FALSE
 asStatic: FALSE

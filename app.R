@@ -32,14 +32,11 @@ AppHeader     <- "COVID-19 vaccine logistics"
 #URLs
 URLNodes      <- "https://raw.githubusercontent.com/TheAviationDoctor/CoViD19VaccineLogistics/main/data/nodes.csv"
 URLLinks      <- "https://raw.githubusercontent.com/TheAviationDoctor/CoViD19VaccineLogistics/main/data/links.csv"
-URLColor      <- "https://raw.githubusercontent.com/TheAviationDoctor/CoViD19VaccineLogistics/main/data/color.csv"
 # URLNodes      <- "./data/nodes.csv"
 # URLLinks      <- "./data/links.csv"
-# URLColor      <- "./data/color.csv"
 # Import and wrangle the supply chain data
 DataNodes <- URLNodes %>% read_csv(na = "", col_names = TRUE, col_types = list(col_integer(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_double(), col_double(), col_character()))
 DataLinks <- URLLinks %>% read_csv(na = "", col_names = TRUE, col_types = list(col_integer(), col_integer(), col_integer(), col_factor(), col_character()))
-DataColor <- URLColor %>% read_csv(na = "", col_names = TRUE, col_types = list(col_factor(), col_character()))
 ###############################################################################
 # USER INTERFACE LOGIC                                                        #
 ###############################################################################
@@ -98,9 +95,11 @@ server <- function(input, output) {
   ###########################################################################
   # IMPORT AND WRANGLE DATA                                                 #
   ###########################################################################
+  # Build the color palette
+  palnodes <- colorFactor(palette = "viridis", domain = DataNodes$site)
+  DataNodes$color <- palnodes(DataNodes$site)
   # Filter the nodes data based on user selection
-  DataNodesWithColors <- DataNodes %>% inner_join(DataColor, by = c("site" = "site"))
-  DataNodesFiltered <- reactive({ DataNodesWithColors %>% filter(vaccine %in% input$vaccine) %>% filter(site %in% input$site) })
+  DataNodesFiltered <- reactive({ DataNodes %>% filter(vaccine %in% input$vaccine) %>% filter(site %in% input$site) })
   # Build the links coordinates from filtered nodes data
   DataLinksFiltered <- reactive({ DataLinks %>%
       # Join the nodes table to the links table so we get information about the source and the target nodes
@@ -171,7 +170,8 @@ server <- function(input, output) {
         baseGroups = c("color", "black & white", "grayscale"),
         overlayGroups = c("links", "nodes"),
         options = layersControlOptions(collapsed = FALSE)
-      )
+      ) %>%
+      addLegend("bottomright", pal = palnodes, values = DataNodes$site, opacity = 1)
   })
 }
 ###############################################################################
