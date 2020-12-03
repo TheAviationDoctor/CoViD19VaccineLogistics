@@ -37,7 +37,7 @@ URLColor      <- "https://raw.githubusercontent.com/TheAviationDoctor/CoViD19Vac
 # URLLinks      <- "./data/links.csv"
 # URLColor      <- "./data/color.csv"
 # Import and wrangle the supply chain data
-DataNodes <- URLNodes %>% read_csv(na = "", col_names = TRUE, col_types = list(col_integer(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_double(), col_double(), col_character(), col_factor()))
+DataNodes <- URLNodes %>% read_csv(na = "", col_names = TRUE, col_types = list(col_integer(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_double(), col_double(), col_character()))
 DataLinks <- URLLinks %>% read_csv(na = "", col_names = TRUE, col_types = list(col_integer(), col_integer(), col_integer(), col_factor(), col_character()))
 DataColor <- URLColor %>% read_csv(na = "", col_names = TRUE, col_types = list(col_factor(), col_character()))
 ###############################################################################
