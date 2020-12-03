@@ -139,7 +139,7 @@ server <- function(input, output) {
         color = DataNodesFiltered()$color,
         group = "links",
         label = paste("From", DataLinksFiltered()$sourceCmo, "in", DataLinksFiltered()$sourceCity, "to", DataLinksFiltered()$targetCmo, "in", DataLinksFiltered()$targetCity),
-        labelOptions = labelOptions(permanent = FALSE, direction = "bottom", textOnly = FALSE, style = list("color" = DataLinksFiltered()$sourceMarkercolor, "font-weight" = "normal")),
+        labelOptions = labelOptions(permanent = FALSE, direction = "bottom", textOnly = FALSE, style = list("color" = "1e32fa", "font-weight" = "normal")),
         opacity = 1,
         options = pathOptions(pane = "links"),
         popup = DataLinksFiltered()$popup,
