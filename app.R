@@ -30,15 +30,16 @@ library(tidyverse)          # To wrangle the data
 # Header labels
 AppHeader     <- "COVID-19 vaccine logistics"
 #URLs
-URLNodes      <- pin("https://raw.githubusercontent.com/TheAviationDoctor/CoViD19VaccineLogistics/main/data/nodes.csv")
-URLLinks      <- pin("https://raw.githubusercontent.com/TheAviationDoctor/CoViD19VaccineLogistics/main/data/links.csv")
+URLNodes      <- "https://raw.githubusercontent.com/TheAviationDoctor/CoViD19VaccineLogistics/main/data/nodes.csv"
+URLLinks      <- "https://raw.githubusercontent.com/TheAviationDoctor/CoViD19VaccineLogistics/main/data/links.csv"
+URLColor      <- "https://raw.githubusercontent.com/TheAviationDoctor/CoViD19VaccineLogistics/main/data/color.csv"
+# URLNodes      <- "./data/nodes.csv"
+# URLLinks      <- "./data/links.csv"
+# URLColor      <- "./data/color.csv"
 # Import and wrangle the supply chain data
-DataNodes <- pin(URLNodes) %>%
-  read_csv(na = "", col_names = TRUE, col_types = list(col_integer(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_double(), col_double(), col_character(), col_factor(), col_factor(), col_factor(), col_character())) %>%
-  filter(show == TRUE)
-DataLinks <- pin(URLLinks) %>%
-  read_csv(na = "", col_names = TRUE, col_types = list(col_integer(), col_integer(), col_integer(), col_factor(), col_character())) %>%
-  filter(show == TRUE)
+DataNodes <- URLNodes %>% read_csv(na = "", col_names = TRUE, col_types = list(col_integer(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_factor(), col_double(), col_double(), col_character(), col_factor()))
+DataLinks <- URLLinks %>% read_csv(na = "", col_names = TRUE, col_types = list(col_integer(), col_integer(), col_integer(), col_factor(), col_character()))
+DataColor <- URLColor %>% read_csv(na = "", col_names = TRUE, col_types = list(col_factor(), col_character()))
 ###############################################################################
 # USER INTERFACE LOGIC                                                        #
 ###############################################################################
@@ -83,11 +84,10 @@ ui <- fluidPage(
     # MAIN PANEL FOR OUTPUTS                                              #
     #######################################################################
     mainPanel(
+      # Display the map
       leafletOutput("mymap"),
-      textOutput("Test"),
-      dataTableOutput("DataNodesFiltered"),
-      dataTableOutput("DataLinksFiltered"),
-      dataTableOutput("arc")
+      # Display the links table
+      dataTableOutput("DataNodesDisplay"),
     )
   )
 )
@@ -99,54 +99,79 @@ server <- function(input, output) {
   # IMPORT AND WRANGLE DATA                                                 #
   ###########################################################################
   # Filter the nodes data based on user selection
-  DataNodesFiltered <- reactive({ DataNodes %>% filter(vaccine %in% input$vaccine) %>% filter(site %in% input$site) %>% select(id, vaccine, operator, site, latitude, longitude) })
-  # Build the nodes data from filtered nodes data
-  DataLinksFiltered <- reactive({DataLinks %>%
-      mutate(
-        sourceLatitude = DataNodesFiltered() %>% filter(id %in% DataLinks$source) %>% pull(latitude),
-        sourceLongitude = DataNodesFiltered() %>% filter(id %in% DataLinks$source) %>% pull(longitude),
-        targetLatitude = DataNodesFiltered() %>% filter(id %in% DataLinks$target) %>% pull(latitude),
-        targetLongitude = DataNodesFiltered() %>% filter(id %in% DataLinks$target) %>% pull(longitude)
-      )
+  DataNodesWithColors <- DataNodes %>% inner_join(DataColor, by = c("site" = "site"))
+  DataNodesFiltered <- reactive({ DataNodesWithColors %>% filter(vaccine %in% input$vaccine) %>% filter(site %in% input$site) })
+  # Build the links coordinates from filtered nodes data
+  DataLinksFiltered <- reactive({ DataLinks %>%
+      # Join the nodes table to the links table so we get information about the source and the target nodes
+      inner_join(DataNodesFiltered(), by = c("source" = "id")) %>%
+      inner_join(DataNodesFiltered(), by = c("target" = "id")) %>%
+      # Rename the columns to add "source" and "target" and remove ".x" and ".y" wherever they were added after the joins
+      rename_with(~paste0("source", str_to_title(substr(., 1, nchar(.) - 2))), (ncol(DataLinks) + 1):(ncol(DataLinks) + ncol(DataNodesFiltered()) - 1)) %>%
+      rename_with(~paste0("target", str_to_title(substr(., 1, nchar(.) - 2))), (ncol(DataLinks) + ncol(DataNodesFiltered())):(ncol(DataLinks) + ncol(DataNodesFiltered()) + ncol(DataNodesFiltered()) - 2))
   })
-  # Display the nodes and links data as tables
+  # Display the nodes data as tables
+  output$DataNodesDisplay <- DT::renderDataTable({
+    datatable(
+      DataNodesFiltered() %>% select(id, vaccine, cmo, site, city, country),
+      rownames = NULL, options = list(dom = "t", ordering = TRUE, paging = FALSE)
+    )
+  })
   # output$DataNodesFiltered <- DT::renderDataTable({datatable(DataNodesFiltered(), rownames = NULL, options = list(dom = "t", ordering = FALSE, paging = FALSE))})
-  output$DataLinksFiltered <- DT::renderDataTable({datatable(DataLinksFiltered(), rownames = NULL, options = list(dom = "t", ordering = FALSE, paging = FALSE))})
-  ############ EXPERIMENTAL
-  # col.1 <- adjustcolor("orange red", alpha=0.4)
-  # col.2 <- adjustcolor("orange", alpha=0.4)
-  # edge.pal <- colorRampPalette(c(col.1, col.2), alpha = TRUE)
-  # edge.col <- edge.pal(100)
-  #     for(i in 1:nrow(DataLinks)) {
-  #       node1 <- DataNodes[DataNodes$id == DataLinks[i,]$source,]
-  #       node2 <- DataNodes[DataNodes$id == DataLinks[i,]$target,]
-  #       arc <- gcIntermediate( c(node1[1,]$longitude, node1[1,]$latitude), c(node2[1,]$longitude, node2[1,]$latitude), n=1000, addStartEnd=TRUE )
-  #       edge.ind <- round(100 / max(DataLinks$volume))
-  #     }
-  # output$arc <- DT::renderDataTable({datatable(arc, rownames = NULL, options = list(dom = "t", ordering = FALSE, paging = FALSE))})
-  ############ END EXPERIMENTAL
+  ###########################################################################
+  # BUILD AND RENDER THE MAP                                                #
+  ###########################################################################
+  icons()
   output$mymap <- renderLeaflet({
-      gcIntermediate(c(-90.556371,38.658831), c(-71.1694422,42.6147393), n = 100, addStartEnd = TRUE, sp = TRUE) %>%
+      # Build the great circles to represent links
+      gcIntermediate(DataLinksFiltered() %>% select(sourceLongitude, sourceLatitude), DataLinksFiltered() %>% select(targetLongitude, targetLatitude), n = 100, addStartEnd = TRUE, sp = TRUE, breakAtDateLine = TRUE) %>%
       leaflet() %>%
-      setView(15, 8, zoom = 2) %>%
-      addProviderTiles(providers$Stamen.TonerLite, options = providerTileOptions(noWrap = TRUE)) %>%
-      addAwesomeMarkers(
-        data = DataNodesFiltered() %>% cbind("longitude", "latitude"),
-        lng = ~longitude,
-        lat = ~latitude,
-        label = DataNodesFiltered()$vaccine,
-       #  popup = paste("<strong>", DataNodesFiltered()$vaccine," | </strong>", DataNodesFiltered()$comments),
-       #  icon = awesomeIcons(
-       #    icon = "truck",
-       #    iconColor = DataNodesFiltered()$iconcolor,
-       #    library = 'fa',
-       #    markerColor = DataNodesFiltered()$markercolor,
-       #    text = DataNodesFiltered()$id
-       # )
+#      setView(15, 8, zoom = 2) %>%
+      addTiles(group = "color", options = providerTileOptions(noWrap = TRUE)) %>%
+      addProviderTiles(providers$Stamen.Toner, group = "black & white", options = providerTileOptions(noWrap = TRUE)) %>%
+      addProviderTiles(providers$Stamen.TonerLite, group = "grayscale", options = providerTileOptions(noWrap = TRUE)) %>%
+      addMapPane("links", zIndex = 410) %>%
+      addMapPane("nodes", zIndex = 420) %>%
+      ###########################################################################
+      # BUILD AND RENDER THE LINKS LAYER                                        #
+      ###########################################################################
+      addPolylines(
+        # Great circle line thickness is made proportional to the volume shipped (max volume is set to a baseline)
+        color = DataNodesFiltered()$color,
+        group = "links",
+        label = paste("From", DataLinksFiltered()$sourceCmo, "in", DataLinksFiltered()$sourceCity, "to", DataLinksFiltered()$targetCmo, "in", DataLinksFiltered()$targetCity),
+        labelOptions = labelOptions(permanent = FALSE, direction = "bottom", textOnly = FALSE, style = list("color" = DataLinksFiltered()$sourceMarkercolor, "font-weight" = "normal")),
+        opacity = 1,
+        options = pathOptions(pane = "links"),
+        popup = DataLinksFiltered()$popup,
+        weight = DataLinksFiltered()$volume * 2 / max(DataLinksFiltered()$volume)
       ) %>%
-        addPolylines()
-        # %>%
-        # lines(arc, col=edge.col[edge.ind], lwd=edge.ind/30)
+      ###########################################################################
+      # BUILD AND RENDER THE NODES LAYER                                        #
+      ###########################################################################
+      addCircleMarkers(
+        color = "white",
+        data = DataNodesFiltered() %>% cbind("longitude", "latitude"),
+        fill = TRUE,
+        fillColor = DataNodesFiltered()$color,
+        fillOpacity = 1,
+        group = "nodes",
+        label = paste(DataNodesFiltered()$cmo, "in", DataNodesFiltered()$city),
+        labelOptions = labelOptions(permanent = FALSE, direction = "bottom", textOnly = FALSE, style = list("color" = "#1e32fa", "font-weight" = "normal")),
+        lat = ~latitude,
+        lng = ~longitude,
+        opacity = x,
+        options = pathOptions(pane = "nodes"),
+        popup = paste("<strong>", DataNodesFiltered()$vaccine," | </strong>", DataNodesFiltered()$tooltip),
+        radius = 10,
+        stroke = TRUE,
+        weight = 1
+      ) %>%
+      addLayersControl(
+        baseGroups = c("color", "black & white", "grayscale"),
+        overlayGroups = c("links", "nodes"),
+        options = layersControlOptions(collapsed = FALSE)
+      )
   })
 }
 ###############################################################################
